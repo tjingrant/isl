@@ -367,7 +367,11 @@ void cpp_generator::print_method_impl(ostream &os, const isl_class &clazz,
 	string rettype_str =
 		type2cpp(return_type->getPointeeType().getAsString());
 
-	fprintf(os, "   return manage(%s(", fullname.c_str());
+	fprintf(os, "   return ");
+	if (is_isl_type(return_type))
+		fprintf(os, "manage(");
+	fprintf(os, "%s(", fullname.c_str());
+
 	for (int i = 0; i < num_params; ++i) {
 		ParmVarDecl *param = method->getParamDecl(i);
 
@@ -384,9 +388,12 @@ void cpp_generator::print_method_impl(ostream &os, const isl_class &clazz,
 		if (i != num_params - 1)
 		  fprintf(os, ", ");
 	}
-	fprintf(os, "));\n");
+	if (is_isl_type(return_type))
+		fprintf(os, ")");
+	fprintf(os, ");\n");
 
 	fprintf(os, "}\n\n");
+
 }
 
 void cpp_generator::print_method_header(ostream &os, const isl_class &clazz,
@@ -403,11 +410,21 @@ void cpp_generator::print_method_header(ostream &os, const isl_class &clazz,
 	string classname = type2cpp(clazz.name);
 
 	if (is_declaration)
-		fprintf(os, "  inline %s %s(", rettype_str.c_str(),
-			cname.c_str());
+		fprintf(os, "  inline ");
+
+	if (is_isl_type(return_type)) {
+		string rettype_str =
+		type2cpp(return_type->getPointeeType().getAsString());
+		fprintf(os, "%s ", rettype_str.c_str());
+	} else {
+		fprintf(os, "%s ", return_type.getAsString().c_str());
+	}
+
+	if (is_declaration)
+		fprintf(os, "%s(", cname.c_str());
 	else
-		fprintf(os, "%s %s::%s(", rettype_str.c_str(),
-			classname.c_str(), cname.c_str());
+		fprintf(os, "%s::%s(", classname.c_str(), cname.c_str());
+
 
 	for (int i = 1; i < num_params; ++i) {
 		ParmVarDecl *param = method->getParamDecl(i);
@@ -470,6 +487,9 @@ bool cpp_generator::is_supported_method_param(ParmVarDecl *param)
 bool cpp_generator::is_supported_method_rettype(QualType type)
 {
 	if (is_isl_type(type))
+		return true;
+
+	if (type->isIntegerType())
 		return true;
 
 	return false;
