@@ -85,6 +85,20 @@ private:
 	 */
 	void print_public_constructors(ostream &os, const isl_class &clazz);
 
+	/* Print declarations for conversion constructors for class "class"
+	 * to "os".
+	 *
+	 * Add for each isl function that is marked as __isl_constructor and
+	 * has a single isl_type argument a conversion constructor.
+	 *
+	 * Example:
+	 *
+	 * 	inline UnionSet(BasicSet *Obj);
+	 *      inline UnionSet(Set *Obj);
+	 *
+	 */
+	void print_conversion_constructors(ostream &os, const isl_class &clazz);
+
 	/* Print declaration of destructor for class "clazz" to "os".
 	 */
 	void print_destructor(ostream &os, const isl_class &clazz);
@@ -158,6 +172,12 @@ private:
 	void print_public_constructors_impl(ostream &os,
 		const isl_class &clazz);
 
+	/* Print implementations of conversion constructors for class "clazz"
+	 * to "os".
+	 */
+	void print_conversion_constructors_impl(ostream &os,
+		const isl_class &clazz);
+
 	/* Print implementation of copy assignment operator for class "clazz"
 	 * to "os".
 	 */
@@ -220,4 +240,8 @@ private:
 	 * If "start_lowercase" is set, the first letter remains lowercase.
 	 */
 	string to_camel_case(const string &input, bool start_lowercase = false);
+
+	/* Check if "cons" is a conversion constructor.
+	 */
+	bool is_conversion_constructor(FunctionDecl *cons);
 };
