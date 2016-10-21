@@ -137,6 +137,7 @@ void cpp_generator::print_class(ostream &os, const isl_class &clazz)
 	print_copy_assignment(os, clazz);
 	print_destructor(os, clazz);
 	print_ptr(os, clazz);
+	print_str(os, clazz);
 	print_methods(os, clazz);
 
 	fprintf(os, "};\n\n");
@@ -229,6 +230,14 @@ void cpp_generator::print_ptr(ostream &os, const isl_class &clazz)
 	fprintf(os, "  inline bool isNull() const;\n");
 }
 
+void cpp_generator::print_str(ostream &os, const isl_class &clazz)
+{
+	if (!clazz.fn_to_str)
+		return;
+
+	fprintf(os, "  inline std::string getStr() const;\n");
+}
+
 void cpp_generator::print_methods(ostream &os, const isl_class &clazz)
 {
 	map<string, set<FunctionDecl *> >::const_iterator it;
@@ -273,6 +282,7 @@ void cpp_generator::print_class_impl(ostream &os, const isl_class &clazz)
 	print_copy_assignment_impl(os, clazz);
 	print_destructor_impl(os, clazz);
 	print_ptr_impl(os, clazz);
+	print_str_impl(os, clazz);
 	print_methods_impl(os, clazz);
 }
 
@@ -377,6 +387,22 @@ void cpp_generator::print_ptr_impl(ostream &os, const isl_class &clazz)
 	fprintf(os, "}\n\n");
 	fprintf(os, "bool %s::isNull() const {\n", cppname);
 	fprintf(os, "  return Ptr == nullptr;\n");
+	fprintf(os, "}\n\n");
+}
+
+void cpp_generator::print_str_impl(ostream &os, const isl_class &clazz)
+{
+	if (!clazz.fn_to_str)
+		return;
+
+	const char *name = clazz.name.c_str();
+	std::string cppstring = type2cpp(clazz.name);
+	const char *cppname = cppstring.c_str();
+	fprintf(os, "std::string %s::getStr() const {\n", cppname);
+	fprintf(os, "  char *Tmp = %s_to_str(get());\n", name, name);
+	fprintf(os, "  std::string S(Tmp);\n");
+	fprintf(os, "  free(Tmp);\n");
+	fprintf(os, "  return Tmp;\n");
 	fprintf(os, "}\n\n");
 }
 
