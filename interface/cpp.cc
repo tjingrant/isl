@@ -33,7 +33,8 @@
 
 #include "isl_config.h"
 
-#include <stdio.h>
+#include <cstdio>
+#include <cstdarg>
 #include <iostream>
 #include <map>
 #include <vector>
