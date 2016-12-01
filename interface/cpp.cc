@@ -82,6 +82,18 @@ void cpp_generator::generate()
 	fprintf(os, "namespace isl {\n\n");
 
 	print_forward_declarations(os);
+
+	os <<
+		"enum class DimType {\n"
+		"	Cst =  isl_dim_cst,\n"
+		"	Param = isl_dim_param,\n"
+		"	In = isl_dim_in,\n"
+		"	Out = isl_dim_out,\n"
+		"	Set = isl_dim_set,\n"
+		"	Div = isl_dim_div,\n"
+		"	All = isl_dim_all\n"
+		"};\n\n";
+
 	print_declarations(os);
 	print_implementations(os);
 
@@ -491,8 +503,11 @@ void cpp_generator::print_method_impl(ostream &os, const isl_class &clazz,
 	for (int i = 0; i < num_params; ++i) {
 		ParmVarDecl *param = method->getParamDecl(i);
 		QualType type = param->getOriginalType();
+		string type_name = type.getAsString();
 
-		if (is_isl_type(type)) {
+		if (type_name == "isl_dim_type" || type_name == "enum isl_dim_type") {
+			os << "static_cast<isl_dim_type>(" << param->getName().str() << ")";
+		} else if (is_isl_type(type)) {
 			if (i == 0)
 				fprintf(os, "");
 			else
@@ -551,15 +566,21 @@ void cpp_generator::print_method_header(ostream &os, const isl_class &clazz,
 	for (int i = 1; i < num_params; ++i) {
 		ParmVarDecl *param = method->getParamDecl(i);
 		QualType type = param->getOriginalType();
-		string cpptype = type2cpp(type->getPointeeType().getAsString());
 
-		if (is_isl_type(type))
+		if (is_isl_type(type)) {
+			string cpptype = type2cpp(type->getPointeeType().getAsString());
 			fprintf(os, "const %s &%s", cpptype.c_str(),
 				param->getName().str().c_str());
-		else
+		} else {
+			// TODO: Refactor out QualType to C++ type conversion, and it is NOT type2cpp!!
+			string type_name = type.getAsString();
+			if (type_name == "isl_dim_type" || type_name == "enum isl_dim_type")
+				type_name = "DimType";
+
 			fprintf(os, "%s %s",
-				type.getAsString().c_str(),
+				type_name.c_str(),
 				param->getName().str().c_str());
+		}
 
 		if (i != num_params - 1)
 		  fprintf(os, ", ");
