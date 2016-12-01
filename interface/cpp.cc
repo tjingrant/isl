@@ -84,6 +84,136 @@ void cpp_generator::generate()
 	print_forward_declarations(os);
 
 	os <<
+		"#define STRINGIZE_(X) #X\n"
+		"#define STRINGIZE(X) STRINGIZE_(X)\n"
+		"\n"
+		"#define ISLPP_ASSERT(test, message)     \\\n"
+		"	do {								\\\n"
+		"		if (test)						\\\n"
+		"			break;						\\\n"
+		"		fputs(\"Assertion \\\"\" #test \"\\\" failed at \" __FILE__ \":\" STRINGIZE(__LINE__)\"\\n  \" message  \"\\n\", stderr); \\\n"
+		"	} while (0)\n"
+		"\n"
+		"// nullptr_r is also returned by pointer-valued functions in case of error.\n"
+		"static const nullptr_t error;\n"
+		"\n"
+		"// Three-value logic\n"
+		"class Tribool {\n"
+		"private:\n"
+		"	// Users don't need access to the internal representation.\n"
+		"	//\n"
+		"	// However, there is one use case where it could be useful:\n"
+		"	//\n"
+		"	// switch (tribool.switch()) {\n"
+		"	//   case Tribool::False:\n"
+		"	//   case Tribool::True:\n"
+		"	//   case Tribool::Error: // or default:\n"
+		"	// }\n"
+		"	enum Values {\n"
+		"		False = isl_bool_false,\n"
+		"		True = isl_bool_true,\n"
+		"		Error = isl_bool_error\n"
+		"	};\n"
+		"	Values Val;\n"
+		"\n"
+		"	/* implicit */ Tribool(Values Val) : Val(Val) {}\n"
+		"\n"
+		"public:\n"
+		"	// Use the error-state by default\n"
+		"	Tribool() : Val(Error) { }\n"
+		"\n"
+		"	// Allow assigning 'false', 'true' and 'error' to variables of type Tribool.\n"
+		"	/* implicit */ Tribool(bool Val): Val(Val ? True : False) {}\n"
+		"	/* implicit */ Tribool(nullptr_t) : Val(Error) {}\n"
+		"\n"
+		"	// For converting results from isl functions.\n"
+		"	explicit Tribool(isl_bool Val) : Val(static_cast<Values>(Val)) {}\n"
+		"\n"
+		"	// Prefer one of these instead the implicit bool-conversion to be aware what should happen in the error-case.\n"
+		"	bool isError() const { return Val == Error; }\n"
+		"	bool isFalseOrError() const { return Val != True; }\n"
+		"	bool isTrueOrError() const { return Val != False; }\n"
+		"	bool isNoError() const { return Val != Error; }\n"
+		"	bool isFalseNoError() const { return Val == False; }\n"
+		"	bool isTrueNoError() const { return Val == True; }\n"
+		"\n"
+		"	// I would have preferred assert(isNoError()) or an exception here.\n"
+		"	// Maybe even remove this so users must use one of the explicit conversions above.\n"
+		"	//\n"
+		"	// In case we cannot use the ISLPP_ASSERT, I opted for error being false-like (instead true-like, as isl_bool does), to be able to implement this schema:\n"
+		"	// if (tristate) {\n"
+		"	// } else if (!tristate) {\n"
+		"	// } else {\n"
+		"	//   /* error-case */\n"
+		"	// }\n"
+		"	explicit operator bool() const { ISLPP_ASSERT(isNoError(), \"IMPLEMENTATION ERROR: Unhandled error state\"); return Val == True; }\n"
+		"\n"
+		"	// isl_bool_not is a function call, maybe we should implement it directly to avoid the overhead.\n"
+		"	Tribool operator!() const { return Tribool(isl_bool_not(static_cast<isl_bool>(Val))); }\n"
+		"};\n"
+		"\n"
+		"// Users might expect this to be equivalent to (lhs.Val==rhs.Val), but error means the lack of a value. That is eg. the state 'error' means we could not determine the correct answer; and when comparing to another error, we still don't know what the correct answer would have been.\n"
+		"static Tribool operator==(Tribool lhs, Tribool rhs) {\n"
+		"	if (lhs.isError() || rhs.isError())\n"
+		"		return error;\n"
+		"	return lhs.isTrueNoError() == rhs.isTrueNoError();\n"
+		"}\n"
+		"// Users might expect this to be equivalent to (lhs.Val!=rhs.Val), but in three-values logic, the equivalence (lhs!=rhs) <=> (lhs^rhs) should hold.\n"
+		"static Tribool operator!=(Tribool lhs, Tribool rhs) {\n"
+		"	if (lhs.isError() || rhs.isError())\n"
+		"		return error;\n"
+		"	return lhs.isTrueNoError() != rhs.isTrueNoError();\n"
+		"}\n"
+		"// By definition, error-states propagate\n"
+		"static Tribool operator|(Tribool lhs, Tribool rhs) {\n"
+		"	if (lhs.isError() || rhs.isError())\n"
+		"		return error;\n"
+		"	return lhs.isTrueNoError() || rhs.isTrueNoError();\n"
+		"}\n"
+		"// However, depending on the value of one argument, the value of the other argument is irrelevant, hence the shortcut-operators take this into account.\n"
+		"static Tribool operator||(Tribool lhs, Tribool rhs) {\n"
+		"	if (lhs.isTrueNoError() && rhs.isTrueNoError())\n"
+		"		return true;\n"
+		"	if (lhs.isError() || rhs.isError())\n"
+		"		return error;\n"
+		"	return lhs.isTrueNoError() || rhs.isTrueNoError();\n"
+		"}\n"
+		"static Tribool operator&(Tribool lhs, Tribool rhs) {\n"
+		"	if (lhs.isError() || rhs.isError())\n"
+		"		return error;\n"
+		"	return lhs.isTrueNoError() && rhs.isTrueNoError();\n"
+		"}\n"
+		"static Tribool operator&&(Tribool lhs, Tribool rhs) {\n"
+		"	if (lhs.isFalseNoError() && rhs.isFalseNoError())\n"
+		"		return false;\n"
+		"	if (lhs.isError() || rhs.isError())\n"
+		"		return error;\n"
+		"	return lhs.isTrueNoError() && rhs.isTrueNoError();\n"
+		"}\n"
+		"static Tribool operator^(Tribool lhs, Tribool rhs) {\n"
+		"	if (lhs.isError() || rhs.isError())\n"
+		"		return error;\n"
+		"	return lhs.isTrueNoError() ^ rhs.isTrueNoError();\n"
+		"}\n"
+"\n"
+"// Because of the bool conversion operator to bool, we need more overloads so the compiler knows which one to pick.\n"
+"static Tribool operator==(bool lhs, Tribool rhs) { return operator==(Tribool(lhs), rhs); }\n"
+"static Tribool operator==(Tribool lhs, bool rhs) { return operator==(lhs, Tribool(rhs)); }\n"
+"static Tribool operator!=(bool lhs, Tribool rhs) { return operator==(Tribool(lhs), rhs); }\n"
+"static Tribool operator!=(Tribool lhs, bool rhs) { return operator==(lhs, Tribool(rhs)); }\n"
+"static Tribool operator|(bool lhs, Tribool rhs) { return operator|(Tribool(lhs), rhs); }\n"
+"static Tribool operator|(Tribool lhs, bool rhs) { return operator|(lhs, Tribool(rhs)); }\n"
+"static Tribool operator||(bool lhs, Tribool rhs) { return operator||(Tribool(lhs), rhs); }\n"
+"static Tribool operator||(Tribool lhs, bool rhs) { return operator||(lhs, Tribool(rhs)); }\n"
+"static Tribool operator&(bool lhs, Tribool rhs) { return operator&(Tribool(lhs), rhs); }\n"
+"static Tribool operator&(Tribool lhs, bool rhs) { return operator&(lhs, Tribool(rhs)); }\n"
+"static Tribool operator&&(bool lhs, Tribool rhs) { return operator&&(Tribool(lhs), rhs); }\n"
+"static Tribool operator&&(Tribool lhs, bool rhs) { return operator&&(lhs, Tribool(rhs)); }\n"
+"static Tribool operator^(bool lhs, Tribool rhs) { return operator^(Tribool(lhs), rhs); }\n"
+"static Tribool operator^(Tribool lhs, bool rhs) { return operator^(lhs, Tribool(rhs)); }\n"
+"\n";
+
+	os <<
 		"enum class DimType {\n"
 		"	Cst =  isl_dim_cst,\n"
 		"	Param = isl_dim_param,\n"
@@ -542,8 +672,6 @@ void cpp_generator::print_method_header(ostream &os, const isl_class &clazz,
 	int num_params = method->getNumParams();
 
 	QualType return_type = method->getReturnType();
-	string rettype_str =
-		type2cpp(return_type->getPointeeType().getAsString());
 	string classname = type2cpp(clazz.name);
 
 	if (is_declaration)
@@ -551,10 +679,13 @@ void cpp_generator::print_method_header(ostream &os, const isl_class &clazz,
 
 	if (is_isl_type(return_type)) {
 		string rettype_str =
-		type2cpp(return_type->getPointeeType().getAsString());
+			type2cpp(return_type->getPointeeType().getAsString());
 		fprintf(os, "%s ", rettype_str.c_str());
 	} else {
-		fprintf(os, "%s ", return_type.getAsString().c_str());
+		string return_type_name = return_type.getAsString();
+		if (return_type_name == "isl_bool" || return_type_name == "enum isl_bool")
+			return_type_name = "Tribool";
+		fprintf(os, "%s ", return_type_name.c_str());
 	}
 
 	if (is_declaration)
