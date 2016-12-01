@@ -586,7 +586,7 @@ bool cpp_generator::is_supported_method(const isl_class &clazz,
 	if (first_arg_is_isl_ctx(method))
 		return false;
 
-	for (size_t i = 0; i < sizeof(cpp_keywords); i++)
+	for (size_t i = 0; i < sizeof(cpp_keywords)/sizeof(cpp_keywords[0]); i++)
 		if (cname.compare(cpp_keywords[i]) == 0)
 			return false;
 
