@@ -36,10 +36,8 @@ if (ISL_INT STREQUAL "imath")
   set(USE_IMATH_FOR_MP ON)
 endif ()
 
-if (ISL_SMALL_INT_OPT)
+if (USE_SMALL_INT_OPT)
   set(USE_SMALL_INT_OPT ON)
-else ()
-  set(USE_SMALL_INT_OPT OFF)
 endif ()
 
 
@@ -284,8 +282,8 @@ set (libisl_common_sources
     ${ISL_SOURCE_DIR}/isl_set_list.c
     ${ISL_SOURCE_DIR}/isl_sort.c
     ${ISL_SOURCE_DIR}/isl_space.c
-    ${ISL_SOURCE_DIR}/isl_stream.c
     ${ISL_SOURCE_DIR}/isl_stride.c
+    ${ISL_SOURCE_DIR}/isl_stream.c
     ${ISL_SOURCE_DIR}/isl_tab.c
     ${ISL_SOURCE_DIR}/isl_tab_pip.c
     ${ISL_SOURCE_DIR}/isl_tarjan.c
@@ -321,14 +319,11 @@ set(libisl_imath32_sources
 
 set(libisl_sources ${libisl_common_sources})
 if (USE_GMP_FOR_MP)
-  message(STATUS "Integer implementation: GNU MP")
   list(APPEND libisl_sources ${libisl_gmp_sources})
 elseif (USE_IMATH_FOR_MP)
   if (USE_SMALL_INT_OPT)
-    message(STATUS "Integer implementation: imath with sio32")
     list(APPEND libisl_sources ${libisl_imath32_sources})
   else ()
-    message(STATUS "Integer implementation: imath")
     list(APPEND libisl_sources ${libisl_imath_sources})
   endif ()
 endif ()
@@ -385,9 +380,9 @@ add_test(NAME isl_test_int
   COMMAND "$<TARGET_FILE:isl_test_int>"
 )
 if (USE_IMATH_FOR_MP)
-	add_test(NAME isl_test_imath
-		COMMAND "$<TARGET_FILE:isl_test_imath>"
-	)
+  add_test(NAME isl_test_imath
+    COMMAND "$<TARGET_FILE:isl_test_imath>"
+  )
 endif ()
 add_test(NAME isl_test
   COMMAND "$<TARGET_FILE:isl_test>"
