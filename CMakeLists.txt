@@ -342,11 +342,6 @@ if (USE_IMATH_FOR_MP)
   target_include_directories(isl PUBLIC "${ISL_SOURCE_DIR}/imath")
 endif ()
 
-# General compiler options
-if (CMAKE_COMPILER_IS_CLANGCC OR CMAKE_COMPILER_IS_GNUCC)
-  target_definitions(isl -Wall)
-endif ()
-
 
 # Auxiliary executables
 macro (add_isl_executable _name)
