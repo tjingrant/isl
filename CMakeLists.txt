@@ -18,7 +18,7 @@ set(IMATH_BINARY_DIR "${ISL_BINARY_DIR}/imath")
 
 ## Configure options
 set(ISL_INT "imath" CACHE STRING "Which package to use to represent multi-precision integers (gmp|imath)")
-option(ISL_SMALL_INT_OPT "Use small integer optimization" ON)
+option(ISL_SMALL_INT_OPT "Use small integer optimization" OFF)
 
 
 # Process configure options
